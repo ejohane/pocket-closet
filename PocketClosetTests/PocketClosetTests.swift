@@ -49,6 +49,28 @@ final class PocketClosetTests: XCTestCase {
         XCTAssertFalse(InventoryFilter(sizeLabel: "5T").matches(item))
     }
 
+    func testDateAddedFilterExcludesOlderItems() {
+        let oldItem = ClothingItem(
+            photoPath: "a",
+            thumbnailPath: "a",
+            owner: Person(name: "Emma"),
+            type: .top,
+            size: SizeCatalog.toddler[0],
+            location: StorageLocation(name: "Closet", kind: .closet),
+            createdAt: Calendar.current.date(byAdding: .day, value: -40, to: Date())!
+        )
+
+        XCTAssertFalse(InventoryFilter(dateAdded: .pastMonth).matches(oldItem))
+        XCTAssertTrue(InventoryFilter(dateAdded: .pastThreeMonths).matches(oldItem))
+    }
+
+    func testSizeValidityTracksClothingType() {
+        XCTAssertTrue(SizeCatalog.isValid(SizeCatalog.toddler[0], for: .top))
+        XCTAssertFalse(SizeCatalog.isValid(SizeCatalog.toddler[0], for: .shoes))
+        XCTAssertTrue(SizeCatalog.isValid(SizeCatalog.toddlerShoes[0], for: .shoes))
+        XCTAssertFalse(SizeCatalog.isValid(SizeCatalog.toddlerShoes[0], for: .bottom))
+    }
+
     func testArchivedItemsAreHiddenByDefault() {
         let item = ClothingItem(
             photoPath: "PocketClosetImages/full.jpg",

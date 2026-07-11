@@ -155,7 +155,6 @@ struct ItemEditView: View {
         Form {
             Section("Required") {
                 Picker("Owner", selection: ownerBinding) {
-                    Text("No owner").tag(Optional<UUID>.none)
                     ForEach(people) { person in
                         Text(person.name).tag(Optional(person.id))
                     }
@@ -168,13 +167,12 @@ struct ItemEditView: View {
                 }
 
                 Picker("Size", selection: sizeBinding) {
-                    ForEach(SizeCatalog.allOptions) { size in
+                    ForEach(SizeCatalog.options(for: item.type)) { size in
                         Text("\(size.label) · \(size.system.rawValue)").tag(size.id)
                     }
                 }
 
                 Picker("Location", selection: locationBinding) {
-                    Text("No location").tag(Optional<UUID>.none)
                     ForEach(locations) { location in
                         Text(location.name).tag(Optional(location.id))
                     }
@@ -242,8 +240,9 @@ struct ItemEditView: View {
             item.type
         } set: { type in
             item.type = type
-            if type == .shoes, item.sizeSystem != .shoes, let firstShoeSize = SizeCatalog.shoeGroups.first?.options.first {
-                item.sizeOption = firstShoeSize
+            if !SizeCatalog.isValid(item.sizeOption, for: type),
+               let firstValidSize = SizeCatalog.options(for: type).first {
+                item.sizeOption = firstValidSize
             }
             item.markUpdated()
         }

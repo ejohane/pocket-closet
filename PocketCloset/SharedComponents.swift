@@ -35,6 +35,7 @@ struct FilterChip: View {
 }
 
 struct PickerRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let iconName: String
     let title: String
     let value: String
@@ -42,52 +43,98 @@ struct PickerRow: View {
     var isRequiredMissing = false
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: iconName)
-                .font(.title3)
-                .foregroundStyle(accent)
-                .frame(width: 42, height: 42)
-                .background(accent.opacity(0.10), in: Circle())
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 14) {
+                        rowIcon
+                        Text(title)
+                            .font(.headline)
+                    }
 
-            Text(title)
-                .font(.headline)
-
-            Spacer(minLength: 16)
-
-            Text(value)
-                .font(.body)
-                .foregroundStyle(isRequiredMissing ? .red : .secondary)
-                .lineLimit(1)
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+                    HStack(spacing: 10) {
+                        Text(value)
+                            .foregroundStyle(isRequiredMissing ? .red : .secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        chevron
+                    }
+                    .padding(.leading, 56)
+                }
+            } else {
+                HStack(spacing: 14) {
+                    rowIcon
+                    Text(title)
+                        .font(.headline)
+                    Spacer(minLength: 16)
+                    Text(value)
+                        .font(.body)
+                        .foregroundStyle(isRequiredMissing ? .red : .secondary)
+                        .lineLimit(1)
+                    chevron
+                }
+            }
         }
         .padding(.vertical, 11)
         .contentShape(Rectangle())
     }
+
+    private var rowIcon: some View {
+        Image(systemName: iconName)
+            .font(.title3)
+            .foregroundStyle(accent)
+            .frame(width: 42, height: 42)
+            .background(accent.opacity(0.10), in: Circle())
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
+    }
 }
 
 struct MetadataRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let iconName: String
     let title: String
     let value: String
     var accent: Color = PCColor.primary
 
     var body: some View {
-        HStack(spacing: 13) {
-            Image(systemName: iconName)
-                .foregroundStyle(accent)
-                .frame(width: 28)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 13) {
+                        metadataIcon
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text(value)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 41)
+                }
+            } else {
+                HStack(spacing: 13) {
+                    metadataIcon
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(value)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
         }
         .font(.body)
         .padding(.vertical, 8)
+    }
+
+    private var metadataIcon: some View {
+        Image(systemName: iconName)
+            .foregroundStyle(accent)
+            .frame(width: 28)
     }
 }
 
@@ -187,32 +234,37 @@ struct EmptyStateView: View {
 }
 
 struct StatusBucketRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let status: ItemStatus
     let count: Int
     var isSelected = false
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: status.iconName)
-                .font(.title2)
-                .foregroundStyle(status.accent)
-                .frame(width: 58, height: 58)
-                .background(status.accent.opacity(0.12), in: Circle())
-
-            Text(status.rawValue)
-                .font(.title3.weight(.semibold))
-
-            Spacer()
-
-            Text(count.formatted())
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(status.accent)
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        statusIcon
+                        Spacer()
+                        countLabel
+                        chevron
+                    }
+                    Text(status.rawValue)
+                        .font(.body.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                HStack(spacing: 16) {
+                    statusIcon
+                    Text(status.rawValue)
+                        .font(.body.weight(.semibold))
+                    Spacer()
+                    countLabel
+                    chevron
+                }
+            }
         }
-        .padding(16)
+        .padding(12)
         .background(isSelected ? status.accent.opacity(0.08) : Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
@@ -221,6 +273,26 @@ struct StatusBucketRow: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(status.rawValue), \(count) items")
+    }
+
+    private var statusIcon: some View {
+        Image(systemName: status.iconName)
+            .font(.title3)
+            .foregroundStyle(status.accent)
+            .frame(width: 46, height: 46)
+            .background(status.accent.opacity(0.12), in: Circle())
+    }
+
+    private var countLabel: some View {
+        Text(count.formatted())
+            .font(.body.weight(.semibold))
+            .foregroundStyle(status.accent)
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
     }
 }
 

@@ -126,9 +126,7 @@ struct AddItemView: View {
         .onChange(of: people.map(\.id)) { _, _ in hydrateDefaults() }
         .onChange(of: locations.map(\.id)) { _, _ in hydrateDefaults() }
         .onChange(of: selectedType) { _, newType in
-            if newType == .shoes, selectedSize?.system != .shoes {
-                selectedSize = nil
-            }
+            validateSize(for: newType)
         }
         .onChange(of: selectedPhotoItem) { _, newItem in
             loadPhoto(from: newItem)
@@ -306,6 +304,11 @@ struct AddItemView: View {
         }
 
         selectedStatus = ItemStatus(rawValue: lastStatusRaw) ?? .inStorage
+    }
+
+    private func validateSize(for type: ClothingType) {
+        guard let selectedSize, !SizeCatalog.isValid(selectedSize, for: type) else { return }
+        self.selectedSize = nil
     }
 
     private func loadPhoto(from item: PhotosPickerItem?) {
@@ -536,6 +539,11 @@ struct TypePickerView: View {
             }
             .navigationTitle("Type")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -574,6 +582,11 @@ struct SizePickerView: View {
             }
             .navigationTitle("Size")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -602,6 +615,11 @@ struct StatusPickerView: View {
             }
             .navigationTitle("Status")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -647,6 +665,11 @@ struct SeasonPickerView: View {
             }
             .navigationTitle("Season")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }

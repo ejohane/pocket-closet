@@ -132,6 +132,22 @@ struct SizeGroup: Identifiable {
     var id: String { title }
 }
 
+enum DateAddedFilter: String, CaseIterable, Identifiable {
+    case pastWeek = "Last 7 Days"
+    case pastMonth = "Last 30 Days"
+    case pastThreeMonths = "Last 90 Days"
+
+    var id: String { rawValue }
+
+    var dayCount: Int {
+        switch self {
+        case .pastWeek: 7
+        case .pastMonth: 30
+        case .pastThreeMonths: 90
+        }
+    }
+}
+
 enum SizeCatalog {
     static let baby = makeOptions(
         system: .baby,
@@ -220,6 +236,14 @@ enum SizeCatalog {
         type == .shoes ? shoeGroups : clothingGroups
     }
 
+    static func options(for type: ClothingType) -> [SizeOption] {
+        groups(for: type).flatMap(\.options)
+    }
+
+    static func isValid(_ size: SizeOption, for type: ClothingType) -> Bool {
+        options(for: type).contains(size)
+    }
+
     static func option(system: SizeSystem, label: String) -> SizeOption? {
         allOptions.first { $0.system == system && $0.label == label }
     }
@@ -244,6 +268,7 @@ struct InventoryFilter: Equatable {
     var status: ItemStatus?
     var locationID: UUID?
     var season: ClothingSeason?
+    var dateAdded: DateAddedFilter?
     var includeArchived = false
 
     var hasActiveFilters: Bool {
@@ -254,6 +279,7 @@ struct InventoryFilter: Equatable {
         status != nil ||
         locationID != nil ||
         season != nil ||
+        dateAdded != nil ||
         includeArchived
     }
 
@@ -265,6 +291,10 @@ struct InventoryFilter: Equatable {
         if let status, item.status != status { return false }
         if let locationID, item.location?.id != locationID { return false }
         if let season, item.season != season { return false }
+        if let dateAdded {
+            let cutoff = Calendar.current.date(byAdding: .day, value: -dateAdded.dayCount, to: Date()) ?? .distantPast
+            if item.createdAt < cutoff { return false }
+        }
 
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return true }

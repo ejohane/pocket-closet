@@ -8,6 +8,7 @@ private enum ClosetSheet: Identifiable {
 }
 
 struct ClosetView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selectedTab: AppTab
     @Query(sort: \ClothingItem.createdAt, order: .reverse) private var items: [ClothingItem]
     @Query(sort: \Person.name) private var people: [Person]
@@ -16,10 +17,10 @@ struct ClosetView: View {
     @State private var filter = InventoryFilter()
     @State private var activeSheet: ClosetSheet?
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
-    ]
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 14), count: count)
+    }
 
     private var visibleItems: [ClothingItem] {
         items.filter { filter.matches($0) }
@@ -69,22 +70,40 @@ struct ClosetView: View {
             }
             .background(Color(.systemGroupedBackground))
 
-            Button {
-                selectedTab = .add
-            } label: {
-                Image(systemName: "camera.fill")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 62, height: 62)
-                    .background(PCColor.primary, in: Circle())
+            if !dynamicTypeSize.isAccessibilitySize {
+                Button {
+                    selectedTab = .add
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 62, height: 62)
+                        .background(PCColor.primary, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 22)
+                .padding(.bottom, 22)
+                .accessibilityLabel("Add item")
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, 22)
-            .padding(.bottom, 22)
-            .accessibilityLabel("Add item")
         }
         .navigationTitle("Pocket Closet")
-        .searchable(text: $filter.query, prompt: "Search clothes")
+        .toolbar {
+            if dynamicTypeSize.isAccessibilitySize {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        selectedTab = .add
+                    } label: {
+                        Image(systemName: "camera.fill")
+                    }
+                    .accessibilityLabel("Add item")
+                }
+            }
+        }
+        .searchable(
+            text: $filter.query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search clothes"
+        )
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .size:
@@ -136,6 +155,8 @@ struct ClosetView: View {
                         isActive: filter.type != nil
                     )
                 }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Type filter")
 
                 Menu {
                     Button("Any Status") { filter.status = nil }
@@ -149,6 +170,8 @@ struct ClosetView: View {
                         isActive: filter.status != nil
                     )
                 }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Status filter")
 
                 Menu {
                     Button("Any Location") { filter.locationID = nil }
@@ -162,6 +185,8 @@ struct ClosetView: View {
                         isActive: filter.locationID != nil
                     )
                 }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Location filter")
 
                 Menu {
                     Button("Any Season") { filter.season = nil }
@@ -175,6 +200,23 @@ struct ClosetView: View {
                         isActive: filter.season != nil
                     )
                 }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Season filter")
+
+                Menu {
+                    Button("Any Date") { filter.dateAdded = nil }
+                    ForEach(DateAddedFilter.allCases) { dateFilter in
+                        Button(dateFilter.rawValue) { filter.dateAdded = dateFilter }
+                    }
+                } label: {
+                    chipLabel(
+                        title: filter.dateAdded?.rawValue ?? "Date Added",
+                        iconName: "calendar",
+                        isActive: filter.dateAdded != nil
+                    )
+                }
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Date added filter")
             }
             .padding(.vertical, 2)
         }
@@ -190,6 +232,7 @@ struct ClosetView: View {
             Image(systemName: "chevron.down")
                 .font(.caption2.weight(.bold))
                 .opacity(0.65)
+                .accessibilityHidden(true)
         }
         .foregroundStyle(isActive ? .white : .primary)
         .padding(.horizontal, 14)

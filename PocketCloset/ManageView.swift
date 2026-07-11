@@ -9,6 +9,7 @@ struct ManageView: View {
     @State private var selectedStatus: ItemStatus?
     @State private var selectionMode = false
     @State private var selectedIDs = Set<UUID>()
+    @State private var selectedItemID: UUID?
 
     private let bucketStatuses: [ItemStatus] = [.inCloset, .inStorage, .needsReview, .donate, .sell]
 
@@ -17,9 +18,12 @@ struct ManageView: View {
     }
 
     private var reviewItems: [ClothingItem] {
-        activeItems.filter { item in
-            guard let selectedStatus else { return true }
-            return item.status == selectedStatus
+        if selectedStatus == .archived {
+            return items.filter { $0.archivedAt != nil }
+        }
+
+        return activeItems.filter { item in
+            selectedStatus == nil || item.status == selectedStatus
         }
     }
 
@@ -58,6 +62,7 @@ struct ManageView: View {
                                     isSelectionMode: selectionMode,
                                     isSelected: selectedIDs.contains(item.id),
                                     onToggleSelected: { toggleSelection(for: item) },
+                                    onOpen: { selectedItemID = item.id },
                                     onSetStatus: { status in setStatus(status, for: [item]) }
                                 )
 
@@ -73,12 +78,20 @@ struct ManageView: View {
                 }
             }
             .padding(20)
-            .padding(.bottom, 60)
+            .padding(.bottom, 110)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Manage")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Button("All Active Items") { applyFilter(nil) }
+                    Divider()
+                    Button("Archived") { applyFilter(.archived) }
+                } label: {
+                    Label("Filter", systemImage: "line.3.horizontal.decrease")
+                }
+
                 if selectionMode {
                     bulkMenu
                 }
@@ -90,6 +103,13 @@ struct ManageView: View {
                 }
             }
         }
+        .navigationDestination(item: $selectedItemID) { id in
+            if let item = items.first(where: { $0.id == id }) {
+                ItemDetailView(item: item)
+            } else {
+                ContentUnavailableView("Item Not Found", systemImage: "tshirt")
+            }
+        }
     }
 
     private var summaryBuckets: some View {
@@ -98,6 +118,7 @@ struct ManageView: View {
                 Button {
                     withAnimation(.easeOut(duration: 0.18)) {
                         selectedStatus = selectedStatus == status ? nil : status
+                        selectedIDs.removeAll()
                     }
                 } label: {
                     StatusBucketRow(
@@ -116,7 +137,7 @@ struct ManageView: View {
             Section("Set Status") {
                 ForEach(ItemStatus.allCases.filter { $0 != .archived }) { status in
                     Button(status.rawValue) {
-                        setStatus(status, for: selectedItems)
+                        bulkSetStatus(status)
                     }
                 }
             }
@@ -124,7 +145,7 @@ struct ManageView: View {
             Section("Move Location") {
                 ForEach(locations) { location in
                     Button(location.name) {
-                        setLocation(location, for: selectedItems)
+                        bulkSetLocation(location)
                     }
                 }
             }
@@ -135,7 +156,7 @@ struct ManageView: View {
     }
 
     private var selectedItems: [ClothingItem] {
-        activeItems.filter { selectedIDs.contains($0.id) }
+        items.filter { selectedIDs.contains($0.id) }
     }
 
     private func toggleSelection(for item: ClothingItem) {
@@ -161,6 +182,26 @@ struct ManageView: View {
         }
         try? modelContext.save()
     }
+
+    private func bulkSetStatus(_ status: ItemStatus) {
+        setStatus(status, for: selectedItems)
+        finishBulkUpdate()
+    }
+
+    private func bulkSetLocation(_ location: StorageLocation) {
+        setLocation(location, for: selectedItems)
+        finishBulkUpdate()
+    }
+
+    private func finishBulkUpdate() {
+        selectedIDs.removeAll()
+        selectionMode = false
+    }
+
+    private func applyFilter(_ status: ItemStatus?) {
+        selectedStatus = status
+        selectedIDs.removeAll()
+    }
 }
 
 private struct ManageItemRow: View {
@@ -168,9 +209,37 @@ private struct ManageItemRow: View {
     let isSelectionMode: Bool
     let isSelected: Bool
     let onToggleSelected: () -> Void
+    let onOpen: () -> Void
     let onSetStatus: (ItemStatus) -> Void
 
     var body: some View {
+        Group {
+            if isSelectionMode {
+                Button(action: onToggleSelected) {
+                    rowContent(showsStatusMenu: false)
+                }
+                .buttonStyle(.plain)
+            } else {
+                rowContent(showsStatusMenu: true)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onOpen)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(item.type.rawValue), size \(item.sizeLabel), \(item.owner?.name ?? "no owner")")
+        .accessibilityValue(isSelectionMode ? (isSelected ? "Selected" : "Not selected") : item.status.rawValue)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelectionMode && isSelected ? .isSelected : [])
+        .accessibilityAction {
+            if isSelectionMode {
+                onToggleSelected()
+            } else {
+                onOpen()
+            }
+        }
+    }
+
+    private func rowContent(showsStatusMenu: Bool) -> some View {
         HStack(spacing: 14) {
             if isSelectionMode {
                 SelectableCheckmark(isSelected: isSelected)
@@ -193,7 +262,7 @@ private struct ManageItemRow: View {
 
             Spacer(minLength: 12)
 
-            if !isSelectionMode {
+            if showsStatusMenu {
                 Menu {
                     ForEach(ItemStatus.allCases.filter { $0 != .archived }) { status in
                         Button(status.rawValue) {
@@ -214,12 +283,5 @@ private struct ManageItemRow: View {
             }
         }
         .padding(.vertical, 12)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if isSelectionMode {
-                onToggleSelected()
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }
