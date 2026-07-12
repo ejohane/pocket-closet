@@ -1,5 +1,5 @@
 import PhotosUI
-import SwiftData
+import CoreData
 import SwiftUI
 import UIKit
 
@@ -26,9 +26,10 @@ private enum AddItemSheet: Identifiable {
 }
 
 struct AddItemView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Person.name) private var people: [Person]
-    @Query(sort: \StorageLocation.name) private var locations: [StorageLocation]
+    @Environment(\.managedObjectContext) private var modelContext
+    @EnvironmentObject private var closetSession: ClosetSession
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Person.name, ascending: true)]) private var allPeople: FetchedResults<Person>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
 
     @AppStorage("lastOwnerID") private var lastOwnerID = ""
     @AppStorage("lastLocationID") private var lastLocationID = ""
@@ -48,6 +49,9 @@ struct AddItemView: View {
     @State private var activeSheet: AddItemSheet?
     @State private var errorMessage: String?
     @State private var showSavedBanner = false
+
+    private var people: [Person] { allPeople.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var locations: [StorageLocation] { allLocations.filter { $0.closet?.id == closetSession.selectedClosetID } }
 
     private var canSave: Bool {
         ItemValidation.canSave(
@@ -324,13 +328,23 @@ struct AddItemView: View {
     }
 
     private func save() {
-        guard let selectedImage, let selectedOwner, let selectedSize, let selectedLocation else { return }
+        guard
+            let selectedImage,
+            let selectedOwner,
+            let selectedSize,
+            let selectedLocation,
+            let closet = Closet.find(id: closetSession.selectedClosetID, in: modelContext)
+        else { return }
 
         do {
             let paths = try ImageStore.save(image: selectedImage)
-            let item = ClothingItem(
+            _ = ClothingItem(
+                context: modelContext,
+                closet: closet,
                 photoPath: paths.photoPath,
                 thumbnailPath: paths.thumbnailPath,
+                photoData: paths.photoData,
+                thumbnailData: paths.thumbnailData,
                 owner: selectedOwner,
                 type: selectedType,
                 size: selectedSize,
@@ -341,7 +355,6 @@ struct AddItemView: View {
                 colorName: colorName.nilIfBlank,
                 notes: notes.nilIfBlank
             )
-            modelContext.insert(item)
             try modelContext.save()
 
             lastOwnerID = selectedOwner.id.uuidString
@@ -375,11 +388,14 @@ struct AddItemView: View {
 
 struct OwnerPickerView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Person.name) private var people: [Person]
+    @Environment(\.managedObjectContext) private var modelContext
+    @EnvironmentObject private var closetSession: ClosetSession
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Person.name, ascending: true)]) private var allPeople: FetchedResults<Person>
     @Binding var selectedOwner: Person?
     @State private var showingNewOwner = false
     @State private var newOwnerName = ""
+
+    private var people: [Person] { allPeople.filter { $0.closet?.id == closetSession.selectedClosetID } }
 
     var body: some View {
         NavigationStack {
@@ -438,9 +454,9 @@ struct OwnerPickerView: View {
 
     private func addOwner() {
         guard let name = newOwnerName.nilIfBlank else { return }
+        guard let closet = Closet.find(id: closetSession.selectedClosetID, in: modelContext) else { return }
         let color = PCColor.tokenCycle[people.count % PCColor.tokenCycle.count]
-        let person = Person(name: name, colorToken: color)
-        modelContext.insert(person)
+        let person = Person(context: modelContext, closet: closet, name: name, colorToken: color)
         try? modelContext.save()
         selectedOwner = person
         newOwnerName = ""
@@ -450,11 +466,14 @@ struct OwnerPickerView: View {
 
 struct LocationPickerView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \StorageLocation.name) private var locations: [StorageLocation]
+    @Environment(\.managedObjectContext) private var modelContext
+    @EnvironmentObject private var closetSession: ClosetSession
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
     @Binding var selectedLocation: StorageLocation?
     @State private var showingNewLocation = false
     @State private var newLocationName = ""
+
+    private var locations: [StorageLocation] { allLocations.filter { $0.closet?.id == closetSession.selectedClosetID } }
 
     var body: some View {
         NavigationStack {
@@ -505,9 +524,9 @@ struct LocationPickerView: View {
 
     private func addLocation() {
         guard let name = newLocationName.nilIfBlank else { return }
+        guard let closet = Closet.find(id: closetSession.selectedClosetID, in: modelContext) else { return }
         let color = PCColor.tokenCycle[locations.count % PCColor.tokenCycle.count]
-        let location = StorageLocation(name: name, kind: .custom, colorToken: color)
-        modelContext.insert(location)
+        let location = StorageLocation(context: modelContext, closet: closet, name: name, kind: .custom, colorToken: color)
         try? modelContext.save()
         selectedLocation = location
         newLocationName = ""

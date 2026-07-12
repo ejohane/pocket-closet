@@ -139,12 +139,13 @@ struct MetadataRow: View {
 }
 
 struct StoredPhotoView: View {
+    var data: Data?
     let relativePath: String?
     var contentMode: ContentMode = .fill
 
     var body: some View {
         Group {
-            if let image = ImageStore.load(relativePath: relativePath) {
+            if let image = ImageStore.load(data: data, fallbackRelativePath: relativePath) {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
@@ -165,7 +166,7 @@ struct ItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StoredPhotoView(relativePath: item.thumbnailPath)
+            StoredPhotoView(data: item.thumbnailData, relativePath: item.thumbnailPath)
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(topLeadingRadius: 13, topTrailingRadius: 13))
