@@ -1,17 +1,17 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct ItemDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var item: ClothingItem
+    @Environment(\.managedObjectContext) private var modelContext
+    @ObservedObject var item: ClothingItem
     @State private var confirmArchive = false
     @State private var confirmDelete = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                StoredPhotoView(relativePath: item.photoPath, contentMode: .fit)
+                StoredPhotoView(data: item.photoData, relativePath: item.photoPath, contentMode: .fit)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 300)
                     .background(Color(.secondarySystemGroupedBackground))
@@ -146,10 +146,14 @@ struct ItemDetailView: View {
 
 struct ItemEditView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var item: ClothingItem
-    @Query(sort: \Person.name) private var people: [Person]
-    @Query(sort: \StorageLocation.name) private var locations: [StorageLocation]
+    @Environment(\.managedObjectContext) private var modelContext
+    @EnvironmentObject private var closetSession: ClosetSession
+    @ObservedObject var item: ClothingItem
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Person.name, ascending: true)]) private var allPeople: FetchedResults<Person>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
+
+    private var people: [Person] { allPeople.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var locations: [StorageLocation] { allLocations.filter { $0.closet?.id == closetSession.selectedClosetID } }
 
     var body: some View {
         Form {

@@ -1,10 +1,11 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct ManageView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \ClothingItem.createdAt, order: .reverse) private var items: [ClothingItem]
-    @Query(sort: \StorageLocation.name) private var locations: [StorageLocation]
+    @Environment(\.managedObjectContext) private var modelContext
+    @EnvironmentObject private var closetSession: ClosetSession
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \ClothingItem.createdAt, ascending: false)]) private var allItems: FetchedResults<ClothingItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
 
     @State private var selectedStatus: ItemStatus?
     @State private var selectionMode = false
@@ -12,6 +13,9 @@ struct ManageView: View {
     @State private var selectedItemID: UUID?
 
     private let bucketStatuses: [ItemStatus] = [.inCloset, .inStorage, .needsReview, .donate, .sell]
+
+    private var items: [ClothingItem] { allItems.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var locations: [StorageLocation] { allLocations.filter { $0.closet?.id == closetSession.selectedClosetID } }
 
     private var activeItems: [ClothingItem] {
         items.filter { $0.archivedAt == nil }
@@ -245,7 +249,7 @@ private struct ManageItemRow: View {
                 SelectableCheckmark(isSelected: isSelected)
             }
 
-            StoredPhotoView(relativePath: item.thumbnailPath)
+            StoredPhotoView(data: item.thumbnailData, relativePath: item.thumbnailPath)
                 .frame(width: 74, height: 74)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
