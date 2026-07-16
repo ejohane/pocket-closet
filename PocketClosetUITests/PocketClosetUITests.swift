@@ -43,6 +43,20 @@ final class PocketClosetUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Top, size M, Me"].exists)
     }
 
+    func testClosetGridUsesUniformCardsForNonSquarePhotos() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_SEED_DATA", "UITEST_RESET_SORT"]
+        app.launch()
+
+        let squarePhotoCard = app.buttons["Outerwear, size 6X, Theo"]
+        let widePhotoCard = app.buttons["Top, size M, Me"]
+        XCTAssertTrue(squarePhotoCard.waitForExistence(timeout: 6))
+        XCTAssertTrue(widePhotoCard.waitForExistence(timeout: 6))
+
+        XCTAssertEqual(squarePhotoCard.frame.width, widePhotoCard.frame.width, accuracy: 1)
+        XCTAssertEqual(squarePhotoCard.frame.height, widePhotoCard.frame.height, accuracy: 1)
+    }
+
     func testClosetSortSheetAddsCompoundCriteria() throws {
         let app = XCUIApplication()
         app.launchArguments = ["UITEST_SEED_DATA", "UITEST_RESET_SORT"]

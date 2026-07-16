@@ -66,8 +66,11 @@ enum ImageStore {
         delete(relativePath: paths.thumbnailPath)
     }
 
-    static func makePlaceholderImage(color: UIColor, symbolName: String = "tshirt") -> UIImage {
-        let size = CGSize(width: 900, height: 900)
+    static func makePlaceholderImage(
+        color: UIColor,
+        symbolName: String = "tshirt",
+        size: CGSize = CGSize(width: 900, height: 900)
+    ) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { context in
             color.setFill()

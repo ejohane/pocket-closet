@@ -166,9 +166,13 @@ struct ItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StoredPhotoView(data: item.thumbnailData, relativePath: item.thumbnailPath)
-                .frame(maxWidth: .infinity)
+            Color.clear
                 .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    StoredPhotoView(data: item.thumbnailData, relativePath: item.thumbnailPath)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .clipped()
                 .clipShape(.rect(topLeadingRadius: 13, topTrailingRadius: 13))
 
             HStack(spacing: 5) {

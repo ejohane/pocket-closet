@@ -184,7 +184,14 @@ enum DefaultDataSeeder {
         ]
 
         for entry in seed {
-            let image = ImageStore.makePlaceholderImage(color: entry.5, symbolName: entry.1.iconName)
+            let imageSize = entry.0 == me
+                ? CGSize(width: 1_600, height: 900)
+                : CGSize(width: 900, height: 900)
+            let image = ImageStore.makePlaceholderImage(
+                color: entry.5,
+                symbolName: entry.1.iconName,
+                size: imageSize
+            )
             if let paths = try? ImageStore.save(image: image) {
                 context.insert(ClothingItem(
                     context: context,
