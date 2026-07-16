@@ -10,7 +10,7 @@ final class PocketClosetUITests: XCTestCase {
         app.launchArguments = ["UITEST_SEED_DATA"]
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["Pocket Closet"].waitForExistence(timeout: 6))
+        XCTAssertTrue(app.navigationBars["Our Closet"].waitForExistence(timeout: 6))
         XCTAssertTrue(app.tabBars.buttons["Closet"].exists)
         XCTAssertTrue(app.tabBars.buttons["Add"].exists)
         XCTAssertTrue(app.tabBars.buttons["Manage"].exists)
@@ -116,5 +116,21 @@ final class PocketClosetUITests: XCTestCase {
         let bulkButton = app.buttons["Bulk"]
         XCTAssertTrue(bulkButton.exists)
         XCTAssertTrue(bulkButton.isEnabled)
+    }
+
+    func testClosetSharingUsesSingleInvitationAction() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_SEED_DATA"]
+        app.launch()
+
+        let sharingButton = app.buttons["Closet sharing"]
+        XCTAssertTrue(sharingButton.waitForExistence(timeout: 6))
+        sharingButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Family Sharing"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.textFields["Family member's iCloud email"].exists)
+        XCTAssertFalse(app.buttons["Add Family Member"].exists)
+        XCTAssertFalse(app.buttons["Repair Family Sharing"].exists)
+        XCTAssertTrue(app.buttons["Share Closet"].exists || app.buttons["Send Invitation"].exists)
     }
 }

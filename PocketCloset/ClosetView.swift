@@ -1,4 +1,4 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 private enum ClosetSheet: Identifiable {
@@ -15,14 +15,23 @@ private enum ClosetSheet: Identifiable {
 
 struct ClosetView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @EnvironmentObject private var closetSession: ClosetSession
     @Binding var selectedTab: AppTab
-    @Query(sort: \ClothingItem.createdAt, order: .reverse) private var items: [ClothingItem]
-    @Query(sort: \Person.name) private var people: [Person]
-    @Query(sort: \StorageLocation.name) private var locations: [StorageLocation]
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \ClothingItem.createdAt, ascending: false)]) private var allItems: FetchedResults<ClothingItem>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Person.name, ascending: true)]) private var allPeople: FetchedResults<Person>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
+    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Closet.createdAt, ascending: true)]) private var closets: FetchedResults<Closet>
 
     @AppStorage("closetSortCriteria") private var encodedSortCriteria = ""
     @State private var filter = InventoryFilter()
     @State private var activeSheet: ClosetSheet?
+    @State private var showingClosetSettings = false
+    @State private var showingClosetManager = false
+
+    private var items: [ClothingItem] { allItems.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var people: [Person] { allPeople.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var locations: [StorageLocation] { allLocations.filter { $0.closet?.id == closetSession.selectedClosetID } }
+    private var selectedCloset: Closet? { closets.first { $0.id == closetSession.selectedClosetID } }
 
     private var columns: [GridItem] {
         let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
@@ -107,8 +116,46 @@ struct ClosetView: View {
                 .accessibilityLabel("Add item")
             }
         }
-        .navigationTitle("Pocket Closet")
+        .navigationTitle(selectedCloset?.name ?? "Pocket Closet")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    ForEach(closets) { closet in
+                        Button {
+                            closetSession.select(closet)
+                            filter = InventoryFilter()
+                        } label: {
+                            if closet.id == closetSession.selectedClosetID {
+                                Label(closet.name, systemImage: "checkmark")
+                            } else {
+                                Text(closet.name)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        showingClosetManager = true
+                    } label: {
+                        Label("Manage Closets", systemImage: "slider.horizontal.3")
+                    }
+                } label: {
+                    Label("Choose Closet", systemImage: "chevron.down")
+                }
+                .accessibilityLabel("Choose closet")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingClosetSettings = true
+                } label: {
+                    Image(systemName: "person.2")
+                }
+                .accessibilityLabel("Closet sharing")
+                .disabled(selectedCloset == nil)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     activeSheet = .sort
@@ -146,6 +193,14 @@ struct ClosetView: View {
             case .sort:
                 ClosetSortView(criteria: sortCriteriaBinding)
             }
+        }
+        .sheet(isPresented: $showingClosetSettings) {
+            if let selectedCloset {
+                ClosetSettingsView(closet: selectedCloset)
+            }
+        }
+        .sheet(isPresented: $showingClosetManager) {
+            ClosetManagerView()
         }
     }
 

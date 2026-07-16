@@ -1,8 +1,11 @@
 # Pocket Closet
 
 Pocket Closet is a local-first native iOS app for managing household clothing inventory.
-It is built with SwiftUI and SwiftData and focuses on quickly capturing individual
+It is built with SwiftUI, Core Data, and CloudKit and focuses on quickly capturing individual
 clothing items, then finding them by owner, type, size, status, location, and search text.
+
+Pocket Closet uses Core Data with CloudKit so a closet can be shared privately with
+other iCloud users while remaining available offline.
 
 ## Project
 
@@ -17,6 +20,15 @@ clothing items, then finding them by owner, type, size, status, location, and se
 
 - Xcode 17 or newer
 - iOS 17 or newer deployment target
+- An Apple Developer team with access to the `iCloud.com.erikjohansson.PocketCloset` CloudKit container
+
+## CloudKit setup
+
+The app target includes the CloudKit and sharing entitlements. Before installing a
+development or TestFlight build, associate `iCloud.com.erikjohansson.PocketCloset`
+with the target in Signing & Capabilities. Initialize the development schema, verify
+sharing with two devices using different iCloud accounts, and deploy the finalized
+schema to the production CloudKit environment before release.
 
 ## Build
 

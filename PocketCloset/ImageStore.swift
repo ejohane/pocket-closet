@@ -4,6 +4,8 @@ import UIKit
 struct StoredImagePaths: Equatable {
     let photoPath: String
     let thumbnailPath: String
+    let photoData: Data
+    let thumbnailData: Data
 }
 
 enum ImageStore {
@@ -31,13 +33,27 @@ enum ImageStore {
 
         return StoredImagePaths(
             photoPath: "\(directoryName)/\(photoPath)",
-            thumbnailPath: "\(directoryName)/\(thumbnailPath)"
+            thumbnailPath: "\(directoryName)/\(thumbnailPath)",
+            photoData: fullData,
+            thumbnailData: thumbData
         )
     }
 
     static func load(relativePath: String?) -> UIImage? {
         guard let url = url(for: relativePath) else { return nil }
         return UIImage(contentsOfFile: url.path)
+    }
+
+    static func loadData(relativePath: String?) -> Data? {
+        guard let url = url(for: relativePath) else { return nil }
+        return try? Data(contentsOf: url, options: .mappedIfSafe)
+    }
+
+    static func load(data: Data?, fallbackRelativePath: String? = nil) -> UIImage? {
+        if let data, let image = UIImage(data: data) {
+            return image
+        }
+        return load(relativePath: fallbackRelativePath)
     }
 
     static func delete(relativePath: String?) {
