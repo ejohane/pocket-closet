@@ -110,6 +110,70 @@ final class PocketClosetTests: XCTestCase {
         XCTAssertNil(counts[.sell])
     }
 
+    func testCompoundSortUsesCriteriaInPriorityOrder() {
+        let emma = Person(context: context, name: "Emma")
+        let theo = Person(context: context, name: "Theo")
+        let location = StorageLocation(context: context, name: "Closet", kind: .closet)
+        let items = [
+            ClothingItem(context: context, photoPath: "a", thumbnailPath: "a", owner: theo, type: .top, size: SizeCatalog.toddler[2], location: location),
+            ClothingItem(context: context, photoPath: "b", thumbnailPath: "b", owner: emma, type: .bottom, size: SizeCatalog.toddler[2], location: location),
+            ClothingItem(context: context, photoPath: "c", thumbnailPath: "c", owner: theo, type: .top, size: SizeCatalog.toddler[0], location: location)
+        ]
+
+        let sorted = InventorySorter.sort(items, using: [
+            InventorySortCriterion(field: .size, direction: .ascending),
+            InventorySortCriterion(field: .owner, direction: .ascending)
+        ])
+
+        XCTAssertEqual(sorted.map(\.thumbnailPath), ["c", "b", "a"])
+    }
+
+    func testShoesRemainAfterClothingForBothSizeDirections() {
+        let owner = Person(context: context, name: "Emma")
+        let location = StorageLocation(context: context, name: "Closet", kind: .closet)
+        let clothing = ClothingItem(
+            context: context,
+            photoPath: "clothing",
+            thumbnailPath: "clothing",
+            owner: owner,
+            type: .top,
+            size: SizeCatalog.baby[0],
+            location: location
+        )
+        let shoes = ClothingItem(
+            context: context,
+            photoPath: "shoes",
+            thumbnailPath: "shoes",
+            owner: owner,
+            type: .shoes,
+            size: SizeCatalog.adultShoes.last!,
+            location: location
+        )
+
+        for direction in InventorySortDirection.allCases {
+            let sorted = InventorySorter.sort(
+                [shoes, clothing],
+                using: [InventorySortCriterion(field: .size, direction: direction)]
+            )
+            XCTAssertEqual(sorted.map(\.thumbnailPath), ["clothing", "shoes"])
+        }
+    }
+
+    func testSortConfigurationPersistsOrderAndRemovesDuplicateFields() {
+        let criteria = [
+            InventorySortCriterion(field: .size, direction: .descending),
+            InventorySortCriterion(field: .type, direction: .ascending)
+        ]
+        let encoded = InventorySortConfiguration.encode(criteria)
+
+        XCTAssertEqual(InventorySortConfiguration.decode(encoded), criteria)
+
+        let duplicateData = try! JSONEncoder().encode(criteria + [criteria[0]])
+        let duplicateString = String(decoding: duplicateData, as: UTF8.self)
+        XCTAssertEqual(InventorySortConfiguration.decode(duplicateString), criteria)
+        XCTAssertEqual(InventorySortConfiguration.decode("not json"), InventorySortConfiguration.defaultCriteria)
+    }
+
     func testImageStoreSaveAndDelete() throws {
         let image = ImageStore.makePlaceholderImage(color: .systemGreen)
         let paths = try ImageStore.save(image: image)

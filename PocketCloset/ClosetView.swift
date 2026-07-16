@@ -3,8 +3,14 @@ import SwiftUI
 
 private enum ClosetSheet: Identifiable {
     case size
+    case sort
 
-    var id: String { "size" }
+    var id: String {
+        switch self {
+        case .size: "size"
+        case .sort: "sort"
+        }
+    }
 }
 
 struct ClosetView: View {
@@ -16,6 +22,7 @@ struct ClosetView: View {
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \StorageLocation.name, ascending: true)]) private var allLocations: FetchedResults<StorageLocation>
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Closet.createdAt, ascending: true)]) private var closets: FetchedResults<Closet>
 
+    @AppStorage("closetSortCriteria") private var encodedSortCriteria = ""
     @State private var filter = InventoryFilter()
     @State private var activeSheet: ClosetSheet?
     @State private var showingClosetSettings = false
@@ -32,7 +39,21 @@ struct ClosetView: View {
     }
 
     private var visibleItems: [ClothingItem] {
-        items.filter { filter.matches($0) }
+        InventorySorter.sort(
+            items.filter { filter.matches($0) },
+            using: sortCriteria
+        )
+    }
+
+    private var sortCriteria: [InventorySortCriterion] {
+        InventorySortConfiguration.decode(encodedSortCriteria)
+    }
+
+    private var sortCriteriaBinding: Binding<[InventorySortCriterion]> {
+        Binding(
+            get: { InventorySortConfiguration.decode(encodedSortCriteria) },
+            set: { encodedSortCriteria = InventorySortConfiguration.encode($0) }
+        )
     }
 
     var body: some View {
@@ -135,6 +156,17 @@ struct ClosetView: View {
                 .disabled(selectedCloset == nil)
             }
 
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    activeSheet = .sort
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                .accessibilityLabel("Sort items")
+                .accessibilityValue(sortCriteria.map { "\($0.field.title), \($0.directionTitle)" }.joined(separator: ", then "))
+                .accessibilityIdentifier("sortItemsButton")
+            }
+
             if dynamicTypeSize.isAccessibilitySize {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -158,6 +190,8 @@ struct ClosetView: View {
                     get: { filter.sizeLabel },
                     set: { filter.sizeLabel = $0 }
                 ))
+            case .sort:
+                ClosetSortView(criteria: sortCriteriaBinding)
             }
         }
         .sheet(isPresented: $showingClosetSettings) {
@@ -298,6 +332,152 @@ struct ClosetView: View {
             Capsule()
                 .stroke(isActive ? Color.clear : Color(.separator).opacity(0.45), lineWidth: 1)
         }
+    }
+}
+
+struct ClosetSortView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var criteria: [InventorySortCriterion]
+    @State private var editMode: EditMode = .active
+    @State private var isShowingFieldPicker = false
+
+    private var availableFields: [InventorySortField] {
+        let selectedFields = Set(criteria.map(\.field))
+        return InventorySortField.allCases.filter { !selectedFields.contains($0) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(Array(criteria.enumerated()), id: \.element.id) { index, criterion in
+                        sortRow(index: index, criterion: criterion)
+                    }
+                    .onMove { source, destination in
+                        criteria.move(fromOffsets: source, toOffset: destination)
+                    }
+                } header: {
+                    Text("Sort Priority")
+                } footer: {
+                    Text("Drag the handles to change priority. Items are sorted by the first option, then by each option below it when values match. Filters are applied before sorting.")
+                }
+
+                Section {
+                    Button {
+                        isShowingFieldPicker = true
+                    } label: {
+                        HStack {
+                            Label("Add Sort", systemImage: "plus")
+                            Spacer()
+                            Image(systemName: "chevron.forward")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .disabled(availableFields.isEmpty)
+
+                    Button("Reset to Default", role: .destructive) {
+                        criteria = InventorySortConfiguration.defaultCriteria
+                    }
+                    .disabled(criteria == InventorySortConfiguration.defaultCriteria)
+                }
+            }
+            .environment(\.editMode, $editMode)
+            .navigationDestination(isPresented: $isShowingFieldPicker) {
+                ClosetSortFieldPickerView(criteria: $criteria)
+            }
+            .navigationTitle("Sort Order")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func sortRow(index: Int, criterion: InventorySortCriterion) -> some View {
+        HStack(spacing: 12) {
+            Text("\(index + 1)")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+                .background(Color(.tertiarySystemFill), in: Circle())
+
+            Text(criterion.field.title)
+
+            Spacer()
+
+            Menu {
+                ForEach(InventorySortDirection.allCases) { direction in
+                    Button {
+                        updateDirection(direction, at: index)
+                    } label: {
+                        if direction == criterion.direction {
+                            Label(directionTitle(for: criterion.field, direction: direction), systemImage: "checkmark")
+                        } else {
+                            Text(directionTitle(for: criterion.field, direction: direction))
+                        }
+                    }
+                }
+            } label: {
+                Text(criterion.directionTitle)
+                .font(.callout)
+                .foregroundStyle(PCColor.primary)
+            }
+            .accessibilityLabel("\(criterion.field.title) direction")
+            .accessibilityValue(criterion.directionTitle)
+
+        }
+        .accessibilityElement(children: .contain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: criteria.count > 1) {
+            if criteria.count > 1 {
+                Button("Delete", role: .destructive) {
+                    removeCriterion(criterion.id)
+                }
+                .accessibilityLabel("Remove \(criterion.field.title) sort")
+            }
+        }
+    }
+
+    private func directionTitle(
+        for field: InventorySortField,
+        direction: InventorySortDirection
+    ) -> String {
+        InventorySortCriterion(field: field, direction: direction).directionTitle
+    }
+
+    private func updateDirection(_ direction: InventorySortDirection, at index: Int) {
+        criteria[index].direction = direction
+    }
+
+    private func removeCriterion(_ id: InventorySortField) {
+        guard criteria.count > 1 else { return }
+        criteria.removeAll { $0.id == id }
+    }
+}
+
+private struct ClosetSortFieldPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var criteria: [InventorySortCriterion]
+
+    private var availableFields: [InventorySortField] {
+        let selectedFields = Set(criteria.map(\.field))
+        return InventorySortField.allCases.filter { !selectedFields.contains($0) }
+    }
+
+    var body: some View {
+        List(availableFields) { field in
+            Button(field.title) {
+                criteria.append(InventorySortCriterion(field: field))
+                dismiss()
+            }
+            .foregroundStyle(.primary)
+            .accessibilityIdentifier("addSortField-\(field.rawValue)")
+        }
+        .navigationTitle("Add Sort")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

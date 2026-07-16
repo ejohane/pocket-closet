@@ -52,6 +52,9 @@ struct AppShell: View {
         }
         .tint(PCColor.primary)
         .task {
+            if ProcessInfo.processInfo.arguments.contains("UITEST_RESET_SORT") {
+                UserDefaults.standard.removeObject(forKey: "closetSortCriteria")
+            }
             bootstrapPersistence()
         }
         .onChange(of: closets.map(\.id)) { _, _ in
