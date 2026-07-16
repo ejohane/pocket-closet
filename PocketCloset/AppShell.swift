@@ -43,6 +43,9 @@ struct AppShell: View {
         }
         .tint(PCColor.primary)
         .task {
+            if ProcessInfo.processInfo.arguments.contains("UITEST_RESET_SORT") {
+                UserDefaults.standard.removeObject(forKey: "closetSortCriteria")
+            }
             DefaultDataSeeder.seedDefaultsIfNeeded(in: modelContext)
             if ProcessInfo.processInfo.arguments.contains("UITEST_SEED_DATA") {
                 DefaultDataSeeder.seedUITestDataIfNeeded(in: modelContext)

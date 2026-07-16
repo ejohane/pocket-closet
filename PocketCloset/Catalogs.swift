@@ -316,6 +316,167 @@ struct InventoryFilter: Equatable {
     }
 }
 
+enum InventorySortField: String, CaseIterable, Identifiable, Codable, Hashable {
+    case size
+    case owner
+    case type
+    case location
+    case status
+    case dateAdded
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .size: "Size"
+        case .owner: "Owner"
+        case .type: "Type"
+        case .location: "Location"
+        case .status: "Status"
+        case .dateAdded: "Date Added"
+        }
+    }
+
+    var defaultDirection: InventorySortDirection {
+        self == .dateAdded ? .descending : .ascending
+    }
+}
+
+enum InventorySortDirection: String, CaseIterable, Identifiable, Codable {
+    case ascending
+    case descending
+
+    var id: String { rawValue }
+}
+
+struct InventorySortCriterion: Identifiable, Equatable, Codable {
+    var field: InventorySortField
+    var direction: InventorySortDirection
+
+    var id: InventorySortField { field }
+
+    init(field: InventorySortField, direction: InventorySortDirection? = nil) {
+        self.field = field
+        self.direction = direction ?? field.defaultDirection
+    }
+
+    var directionTitle: String {
+        switch (field, direction) {
+        case (.size, .ascending): "Smallest First"
+        case (.size, .descending): "Largest First"
+        case (.dateAdded, .ascending): "Oldest First"
+        case (.dateAdded, .descending): "Newest First"
+        case (_, .ascending): "A–Z"
+        case (_, .descending): "Z–A"
+        }
+    }
+}
+
+enum InventorySortConfiguration {
+    static let defaultCriteria = [InventorySortCriterion(field: .dateAdded)]
+
+    static func decode(_ encoded: String) -> [InventorySortCriterion] {
+        guard
+            let data = encoded.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode([InventorySortCriterion].self, from: data)
+        else {
+            return defaultCriteria
+        }
+
+        var seen = Set<InventorySortField>()
+        let uniqueCriteria = decoded.filter { seen.insert($0.field).inserted }
+        return uniqueCriteria.isEmpty ? defaultCriteria : uniqueCriteria
+    }
+
+    static func encode(_ criteria: [InventorySortCriterion]) -> String {
+        let criteria = criteria.isEmpty ? defaultCriteria : criteria
+        guard let data = try? JSONEncoder().encode(criteria) else { return "" }
+        return String(decoding: data, as: UTF8.self)
+    }
+}
+
+enum InventorySorter {
+    static func sort(
+        _ items: [ClothingItem],
+        using criteria: [InventorySortCriterion]
+    ) -> [ClothingItem] {
+        items.sorted { lhs, rhs in
+            for criterion in criteria {
+                if let result = comesBefore(lhs, rhs, using: criterion) {
+                    return result
+                }
+            }
+
+            if lhs.createdAt != rhs.createdAt {
+                return lhs.createdAt > rhs.createdAt
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    private static func comesBefore(
+        _ lhs: ClothingItem,
+        _ rhs: ClothingItem,
+        using criterion: InventorySortCriterion
+    ) -> Bool? {
+        switch criterion.field {
+        case .size:
+            let lhsIsShoe = lhs.type == .shoes || lhs.sizeSystem == .shoes
+            let rhsIsShoe = rhs.type == .shoes || rhs.sizeSystem == .shoes
+            if lhsIsShoe != rhsIsShoe {
+                return !lhsIsShoe
+            }
+            return compare(lhs.sizeSortOrder, rhs.sizeSortOrder, direction: criterion.direction)
+        case .owner:
+            return compare(lhs.owner?.name, rhs.owner?.name, direction: criterion.direction)
+        case .type:
+            return compare(lhs.type.rawValue, rhs.type.rawValue, direction: criterion.direction)
+        case .location:
+            return compare(lhs.location?.name, rhs.location?.name, direction: criterion.direction)
+        case .status:
+            return compare(lhs.status.rawValue, rhs.status.rawValue, direction: criterion.direction)
+        case .dateAdded:
+            return compare(lhs.createdAt, rhs.createdAt, direction: criterion.direction)
+        }
+    }
+
+    private static func compare<T: Comparable>(
+        _ lhs: T,
+        _ rhs: T,
+        direction: InventorySortDirection
+    ) -> Bool? {
+        guard lhs != rhs else { return nil }
+        return direction == .ascending ? lhs < rhs : lhs > rhs
+    }
+
+    private static func compare(
+        _ lhs: String,
+        _ rhs: String,
+        direction: InventorySortDirection
+    ) -> Bool? {
+        compare(Optional(lhs), Optional(rhs), direction: direction)
+    }
+
+    private static func compare(
+        _ lhs: String?,
+        _ rhs: String?,
+        direction: InventorySortDirection
+    ) -> Bool? {
+        switch (lhs, rhs) {
+        case (.none, .none):
+            return nil
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case let (.some(lhs), .some(rhs)):
+            let result = lhs.localizedStandardCompare(rhs)
+            guard result != .orderedSame else { return nil }
+            return direction == .ascending ? result == .orderedAscending : result == .orderedDescending
+        }
+    }
+}
+
 enum InventoryMetrics {
     static func statusCounts(items: [ClothingItem]) -> [ItemStatus: Int] {
         items.reduce(into: [:]) { counts, item in
