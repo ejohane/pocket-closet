@@ -209,6 +209,66 @@ final class PocketClosetTests: XCTestCase {
         XCTAssertNotNil(ImageStore.load(data: paths.thumbnailData))
     }
 
+    func testClothingListTracksSharedProgressWithoutChangingInventory() throws {
+        let closet = Closet(context: context, name: "Family")
+        context.assign(closet, to: persistenceController.privateStore)
+        let owner = Person(context: context, closet: closet, name: "Emma")
+        let location = StorageLocation(context: context, closet: closet, name: "Dresser", kind: .dresser)
+        let item = ClothingItem(
+            context: context,
+            closet: closet,
+            photoPath: "full.jpg",
+            thumbnailPath: "thumb.jpg",
+            owner: owner,
+            type: .top,
+            size: SizeCatalog.toddler[0],
+            location: location,
+            status: .inCloset
+        )
+        let clothingList = ClothingList(context: context, closet: closet, name: "Weekend Bag")
+        let entry = ClothingListEntry(context: context, list: clothingList, item: item)
+        try context.save()
+
+        entry.setCompleted(true)
+        try context.save()
+
+        XCTAssertEqual(closet.lists, Set([clothingList]))
+        XCTAssertEqual(clothingList.entries, Set([entry]))
+        XCTAssertEqual(item.listEntries, Set([entry]))
+        XCTAssertTrue(entry.isCompleted)
+        XCTAssertNotNil(entry.completedAt)
+        XCTAssertEqual(item.status, .inCloset)
+        XCTAssertEqual(item.location, location)
+
+        entry.setCompleted(false)
+        XCTAssertFalse(entry.isCompleted)
+        XCTAssertNil(entry.completedAt)
+    }
+
+    func testDeletingClothingItemRemovesItsListEntriesButKeepsTheList() throws {
+        let closet = Closet(context: context, name: "Family")
+        context.assign(closet, to: persistenceController.privateStore)
+        let item = ClothingItem(
+            context: context,
+            closet: closet,
+            photoPath: "full.jpg",
+            thumbnailPath: "thumb.jpg",
+            owner: Person(context: context, closet: closet, name: "Theo"),
+            type: .bottom,
+            size: SizeCatalog.toddler[0],
+            location: StorageLocation(context: context, closet: closet, name: "Closet", kind: .closet)
+        )
+        let clothingList = ClothingList(context: context, closet: closet, name: "Next Week")
+        _ = ClothingListEntry(context: context, list: clothingList, item: item)
+        try context.save()
+
+        context.delete(item)
+        try context.save()
+
+        XCTAssertEqual(try context.count(for: ClothingList.fetchRequest()), 1)
+        XCTAssertEqual(try context.count(for: ClothingListEntry.fetchRequest()), 0)
+    }
+
     func testDuplicateClosetGraphPreservesDataAndRebuildsRelationships() async throws {
         let createdAt = Date(timeIntervalSince1970: 1_000)
         let updatedAt = Date(timeIntervalSince1970: 2_000)
@@ -254,6 +314,23 @@ final class PocketClosetTests: XCTestCase {
             updatedAt: updatedAt,
             archivedAt: archivedAt
         )
+        let clothingList = ClothingList(
+            context: context,
+            closet: original,
+            name: "Cabin Weekend",
+            notes: "Warm layers",
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+        _ = ClothingListEntry(
+            context: context,
+            list: clothingList,
+            item: item,
+            isCompleted: true,
+            completedAt: archivedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
         try context.save()
 
         let copyID = try await persistenceController.duplicateClosetGraph(for: original.objectID)
@@ -261,6 +338,8 @@ final class PocketClosetTests: XCTestCase {
         let copiedPerson = try XCTUnwrap(copy.people?.first)
         let copiedLocation = try XCTUnwrap(copy.locations?.first)
         let copiedItem = try XCTUnwrap(copy.items?.first)
+        let copiedList = try XCTUnwrap(copy.lists?.first)
+        let copiedEntry = try XCTUnwrap(copiedList.entries?.first)
 
         XCTAssertNotEqual(copy.id, original.id)
         XCTAssertEqual(copy.name, original.name)
@@ -279,6 +358,11 @@ final class PocketClosetTests: XCTestCase {
         XCTAssertEqual(copiedItem.owner, copiedPerson)
         XCTAssertEqual(copiedItem.location, copiedLocation)
         XCTAssertEqual(copiedItem.closet, copy)
+        XCTAssertEqual(copiedList.name, clothingList.name)
+        XCTAssertEqual(copiedList.notes, clothingList.notes)
+        XCTAssertTrue(copiedEntry.isCompleted)
+        XCTAssertEqual(copiedEntry.completedAt, archivedAt)
+        XCTAssertEqual(copiedEntry.item, copiedItem)
         XCTAssertEqual(original.items?.count, 1)
     }
 
@@ -297,6 +381,10 @@ final class PocketClosetTests: XCTestCase {
             size: SizeCatalog.toddler[0],
             location: location
         )
+        let clothingList = ClothingList(context: context, closet: closet, name: "Packing")
+        if let item = closet.items?.first {
+            _ = ClothingListEntry(context: context, list: clothingList, item: item)
+        }
         try context.save()
 
         try await persistenceController.deleteOwnedCloset(closet.objectID)
@@ -305,6 +393,8 @@ final class PocketClosetTests: XCTestCase {
         XCTAssertEqual(try context.count(for: Person.fetchRequest()), 0)
         XCTAssertEqual(try context.count(for: StorageLocation.fetchRequest()), 0)
         XCTAssertEqual(try context.count(for: ClothingItem.fetchRequest()), 0)
+        XCTAssertEqual(try context.count(for: ClothingList.fetchRequest()), 0)
+        XCTAssertEqual(try context.count(for: ClothingListEntry.fetchRequest()), 0)
     }
 
     func testLegacySwiftDataStoreMigratesRelationshipsAndMetadata() throws {

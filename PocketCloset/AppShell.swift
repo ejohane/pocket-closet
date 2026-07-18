@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 enum AppTab: String, CaseIterable, Identifiable {
     case closet = "Closet"
+    case lists = "Lists"
     case add = "Add"
     case manage = "Manage"
 
@@ -14,6 +15,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .closet: "square.grid.2x2"
+        case .lists: "checklist"
         case .add: "camera"
         case .manage: "tray.full"
         }
@@ -37,6 +39,12 @@ struct AppShell: View {
             }
             .tabItem { Label(AppTab.closet.rawValue, systemImage: AppTab.closet.iconName) }
             .tag(AppTab.closet)
+
+            NavigationStack {
+                ListsView()
+            }
+            .tabItem { Label(AppTab.lists.rawValue, systemImage: AppTab.lists.iconName) }
+            .tag(AppTab.lists)
 
             NavigationStack {
                 AddItemView()
@@ -162,6 +170,13 @@ enum DefaultDataSeeder {
 
     static func seedUITestDataIfNeeded(in context: NSManagedObjectContext, closet: Closet?) {
         guard let closet else { return }
+        if ProcessInfo.processInfo.arguments.contains("UITEST_RESET_LISTS") {
+            for clothingList in closet.lists ?? [] {
+                context.delete(clothingList)
+            }
+            try? context.save()
+        }
+
         let itemRequest = ClothingItem.fetchRequest()
         itemRequest.fetchLimit = 1
         itemRequest.predicate = NSPredicate(format: "brand == %@", "UITestSeed")

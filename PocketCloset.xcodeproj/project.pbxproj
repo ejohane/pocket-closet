@@ -23,6 +23,7 @@
 		A2000000000000000000000E /* PocketClosetUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3000000000000000000000E /* PocketClosetUITests.swift */; };
 		A2000000000000000000000F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000012 /* LaunchScreen.storyboard */; };
 		A20000000000000000000010 /* LegacyStoreMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000014 /* LegacyStoreMigrator.swift */; };
+		A20000000000000000000011 /* ListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000015 /* ListsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +64,7 @@
 		A30000000000000000000012 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A30000000000000000000013 /* PocketCloset.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PocketCloset.entitlements; sourceTree = "<group>"; };
 		A30000000000000000000014 /* LegacyStoreMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyStoreMigrator.swift; sourceTree = "<group>"; };
+		A30000000000000000000015 /* ListsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +97,7 @@
 				A30000000000000000000006 /* AppShell.swift */,
 				A30000000000000000000007 /* SharedComponents.swift */,
 				A30000000000000000000008 /* ClosetView.swift */,
+				A30000000000000000000015 /* ListsView.swift */,
 				A30000000000000000000009 /* AddItemView.swift */,
 				A3000000000000000000000A /* ManageView.swift */,
 				A3000000000000000000000B /* ItemDetailView.swift */,
@@ -253,6 +256,7 @@
 				A20000000000000000000006 /* AppShell.swift in Sources */,
 				A20000000000000000000007 /* SharedComponents.swift in Sources */,
 				A20000000000000000000008 /* ClosetView.swift in Sources */,
+				A20000000000000000000011 /* ListsView.swift in Sources */,
 				A20000000000000000000009 /* AddItemView.swift in Sources */,
 				A2000000000000000000000A /* ManageView.swift in Sources */,
 				A2000000000000000000000B /* ItemDetailView.swift in Sources */,
@@ -407,7 +411,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = PocketCloset/PocketCloset.entitlements;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = TRA7965NM5;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
@@ -448,7 +452,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = PocketCloset/PocketCloset.entitlements;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = TRA7965NM5;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;

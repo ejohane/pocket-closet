@@ -10,9 +10,11 @@ Pocket Closet is for household members who manage clothing across kids, adults, 
 
 ## Product Purpose
 
-Pocket Closet is a local-first iOS clothing inventory app. It helps a household capture individual clothing items with photos and structured metadata, find what is available by owner/type/size/location/status, and decide what should stay, move, sell, donate, or be archived.
+Pocket Closet is a local-first iOS clothing inventory app. It helps a household capture individual clothing items with photos and structured metadata, find what is available by owner/type/size/location/status, coordinate shared clothing lists, and decide what should stay, move, sell, donate, or be archived.
 
 Success means a user can add an item in under 20 seconds after defaults are set, filter hundreds of local items instantly, and answer practical questions like "what do we have for Emma in 4T?" without digging through storage.
+
+Shared clothing lists let household members select existing items for packing, moving, donating, hand-me-downs, or other temporary projects. Checklist completion belongs to the list and never changes the item's inventory status or storage location.
 
 ## Brand Personality
 
