@@ -21,7 +21,8 @@ Use SF Pro through SwiftUI system typography. Prefer native title, headline, bod
 
 ## Components
 
-- App shell: three native tabs, `Closet`, `Add`, and `Manage`.
+- App shell: four native tabs, `Closet`, `Lists`, `Add`, and `Manage`.
+- Lists: native grouped rows for active and archived lists, photo-forward item selection, shared progress, and checklist rows that can be regrouped by owner, type, or location.
 - Cards: photo-forward item cards with 12-14pt continuous corners and thin semantic borders.
 - Rows: native-feeling metadata rows with SF Symbols, bold labels, trailing values, and chevrons when interactive.
 - Chips: horizontal filter chips with clear active/inactive states.

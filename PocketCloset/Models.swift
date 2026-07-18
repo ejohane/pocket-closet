@@ -10,6 +10,7 @@ final class Closet: NSManagedObject, Identifiable {
     @NSManaged var people: Set<Person>?
     @NSManaged var locations: Set<StorageLocation>?
     @NSManaged var items: Set<ClothingItem>?
+    @NSManaged var lists: Set<ClothingList>?
 
     convenience init(
         context: NSManagedObjectContext,
@@ -129,6 +130,7 @@ final class ClothingItem: NSManagedObject, Identifiable {
     @NSManaged var closet: Closet?
     @NSManaged var owner: Person?
     @NSManaged var location: StorageLocation?
+    @NSManaged var listEntries: Set<ClothingListEntry>?
 
     var type: ClothingType {
         get { ClothingType(rawValue: typeRaw) ?? .other }
@@ -214,6 +216,86 @@ final class ClothingItem: NSManagedObject, Identifiable {
     }
 }
 
+@objc(ClothingList)
+final class ClothingList: NSManagedObject, Identifiable {
+    @NSManaged var id: UUID
+    @NSManaged var name: String
+    @NSManaged var notes: String?
+    @NSManaged var createdAt: Date
+    @NSManaged var updatedAt: Date
+    @NSManaged var archivedAt: Date?
+    @NSManaged var closet: Closet?
+    @NSManaged var entries: Set<ClothingListEntry>?
+
+    convenience init(
+        context: NSManagedObjectContext,
+        closet: Closet? = nil,
+        id: UUID = UUID(),
+        name: String,
+        notes: String? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        archivedAt: Date? = nil
+    ) {
+        self.init(context: context)
+        self.id = id
+        self.name = name
+        self.notes = notes
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
+        self.closet = closet
+        if let store = closet?.objectID.persistentStore {
+            context.assign(self, to: store)
+        }
+    }
+
+    func markUpdated() {
+        updatedAt = Date()
+    }
+}
+
+@objc(ClothingListEntry)
+final class ClothingListEntry: NSManagedObject, Identifiable {
+    @NSManaged var id: UUID
+    @NSManaged var isCompleted: Bool
+    @NSManaged var completedAt: Date?
+    @NSManaged var createdAt: Date
+    @NSManaged var updatedAt: Date
+    @NSManaged var list: ClothingList?
+    @NSManaged var item: ClothingItem?
+
+    convenience init(
+        context: NSManagedObjectContext,
+        list: ClothingList,
+        item: ClothingItem,
+        id: UUID = UUID(),
+        isCompleted: Bool = false,
+        completedAt: Date? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.init(context: context)
+        self.id = id
+        self.isCompleted = isCompleted
+        self.completedAt = completedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.list = list
+        self.item = item
+        if let store = list.objectID.persistentStore {
+            context.assign(self, to: store)
+        }
+    }
+
+    func setCompleted(_ completed: Bool) {
+        isCompleted = completed
+        completedAt = completed ? Date() : nil
+        updatedAt = Date()
+        list?.markUpdated()
+    }
+}
+
 extension Closet {
     static func fetchRequest() -> NSFetchRequest<Closet> {
         NSFetchRequest(entityName: "Closet")
@@ -243,5 +325,17 @@ extension StorageLocation {
 extension ClothingItem {
     static func fetchRequest() -> NSFetchRequest<ClothingItem> {
         NSFetchRequest(entityName: "ClothingItem")
+    }
+}
+
+extension ClothingList {
+    static func fetchRequest() -> NSFetchRequest<ClothingList> {
+        NSFetchRequest(entityName: "ClothingList")
+    }
+}
+
+extension ClothingListEntry {
+    static func fetchRequest() -> NSFetchRequest<ClothingListEntry> {
+        NSFetchRequest(entityName: "ClothingListEntry")
     }
 }

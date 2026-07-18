@@ -12,8 +12,47 @@ final class PocketClosetUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Our Closet"].waitForExistence(timeout: 6))
         XCTAssertTrue(app.tabBars.buttons["Closet"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Lists"].exists)
         XCTAssertTrue(app.tabBars.buttons["Add"].exists)
         XCTAssertTrue(app.tabBars.buttons["Manage"].exists)
+    }
+
+    func testCreateListSelectClothesAndCompleteItem() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["UITEST_SEED_DATA", "UITEST_RESET_LISTS"]
+        app.launch()
+
+        app.tabBars.buttons["Lists"].tap()
+        XCTAssertTrue(app.navigationBars["Lists"].waitForExistence(timeout: 6))
+        app.buttons["newListButton"].tap()
+
+        XCTAssertTrue(app.navigationBars["New List"].waitForExistence(timeout: 3))
+        let nameField = app.textFields["List Name"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        nameField.typeText("Weekend Bag")
+        app.buttons["createListButton"].tap()
+
+        let listRow = app.staticTexts["Weekend Bag"]
+        XCTAssertTrue(listRow.waitForExistence(timeout: 3))
+        listRow.tap()
+        XCTAssertTrue(app.navigationBars["Weekend Bag"].waitForExistence(timeout: 3))
+        app.buttons["addClothesToListButton"].tap()
+
+        XCTAssertTrue(app.navigationBars["Add Clothes"].waitForExistence(timeout: 3))
+        let selectedItem = app.buttons["Top, size 4T, Emma"]
+        XCTAssertTrue(selectedItem.waitForExistence(timeout: 3))
+        selectedItem.tap()
+        app.buttons["saveListItemsButton"].tap()
+
+        let progress = app.staticTexts["listProgressLabel"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 3))
+        XCTAssertEqual(progress.label, "0 of 1 complete")
+
+        let entry = app.descendants(matching: .any)["listEntry-Top-Emma"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 3))
+        entry.tap()
+        XCTAssertEqual(progress.label, "1 of 1 complete")
+        XCTAssertEqual(entry.value as? String, "Complete")
     }
 
     func testManageShowsSeededBuckets() throws {

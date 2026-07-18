@@ -303,6 +303,7 @@ final class PersistenceController: @unchecked Sendable {
                         locationsByObjectID[location.objectID] = locationCopy
                     }
 
+                    var itemsByObjectID: [NSManagedObjectID: ClothingItem] = [:]
                     for item in original.items ?? [] {
                         let itemCopy = ClothingItem(
                             context: context,
@@ -330,6 +331,33 @@ final class PersistenceController: @unchecked Sendable {
                         itemCopy.sizeSortOrder = item.sizeSortOrder
                         itemCopy.statusRaw = item.statusRaw
                         itemCopy.seasonRaw = item.seasonRaw
+                        itemsByObjectID[item.objectID] = itemCopy
+                    }
+
+                    for clothingList in original.lists ?? [] {
+                        let listCopy = ClothingList(
+                            context: context,
+                            closet: copy,
+                            name: clothingList.name,
+                            notes: clothingList.notes,
+                            createdAt: clothingList.createdAt,
+                            updatedAt: clothingList.updatedAt,
+                            archivedAt: clothingList.archivedAt
+                        )
+
+                        for entry in clothingList.entries ?? [] {
+                            guard let item = entry.item,
+                                  let itemCopy = itemsByObjectID[item.objectID] else { continue }
+                            _ = ClothingListEntry(
+                                context: context,
+                                list: listCopy,
+                                item: itemCopy,
+                                isCompleted: entry.isCompleted,
+                                completedAt: entry.completedAt,
+                                createdAt: entry.createdAt,
+                                updatedAt: entry.updatedAt
+                            )
+                        }
                     }
 
                     try context.save()
@@ -505,6 +533,8 @@ final class PersistenceController: @unchecked Sendable {
         let person = entity("Person", Person.self)
         let location = entity("StorageLocation", StorageLocation.self)
         let item = entity("ClothingItem", ClothingItem.self)
+        let clothingList = entity("ClothingList", ClothingList.self)
+        let listEntry = entity("ClothingListEntry", ClothingListEntry.self)
 
         closet.properties = [
             attribute("id", .UUIDAttributeType, defaultValue: UUID()),
@@ -548,14 +578,32 @@ final class PersistenceController: @unchecked Sendable {
             attribute("updatedAt", .dateAttributeType, defaultValue: Date()),
             attribute("archivedAt", .dateAttributeType, optional: true)
         ]
+        clothingList.properties = [
+            attribute("id", .UUIDAttributeType, defaultValue: UUID()),
+            attribute("name", .stringAttributeType, defaultValue: "List"),
+            attribute("notes", .stringAttributeType, optional: true),
+            attribute("createdAt", .dateAttributeType, defaultValue: Date()),
+            attribute("updatedAt", .dateAttributeType, defaultValue: Date()),
+            attribute("archivedAt", .dateAttributeType, optional: true)
+        ]
+        listEntry.properties = [
+            attribute("id", .UUIDAttributeType, defaultValue: UUID()),
+            attribute("isCompleted", .booleanAttributeType, defaultValue: false),
+            attribute("completedAt", .dateAttributeType, optional: true),
+            attribute("createdAt", .dateAttributeType, defaultValue: Date()),
+            attribute("updatedAt", .dateAttributeType, defaultValue: Date())
+        ]
 
         relate(closet, "people", to: person, "closet", toMany: true, deleteRule: .cascadeDeleteRule)
         relate(closet, "locations", to: location, "closet", toMany: true, deleteRule: .cascadeDeleteRule)
         relate(closet, "items", to: item, "closet", toMany: true, deleteRule: .cascadeDeleteRule)
+        relate(closet, "lists", to: clothingList, "closet", toMany: true, deleteRule: .cascadeDeleteRule)
         relate(person, "items", to: item, "owner", toMany: true)
         relate(location, "items", to: item, "location", toMany: true)
+        relate(clothingList, "entries", to: listEntry, "list", toMany: true, deleteRule: .cascadeDeleteRule)
+        relate(item, "listEntries", to: listEntry, "item", toMany: true, deleteRule: .cascadeDeleteRule)
 
-        model.entities = [closet, person, location, item]
+        model.entities = [closet, person, location, item, clothingList, listEntry]
         return model
     }
 
